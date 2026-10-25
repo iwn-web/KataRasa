@@ -1,0 +1,1492 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PustakaKata - Platform Baca & Tulis Cerita Digital</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              brand: {
+                50: "#f0fdf4",
+                100: "#dcfce7",
+                500: "#22c55e",
+                600: "#16a34a",
+                700: "#15803d",
+                900: "#14532d",
+              },
+              amber: {
+                400: "#fbbf24",
+                500: "#f59e0b",
+              },
+            },
+          },
+        },
+      };
+    </script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Google Fonts -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Merriweather:ital,wght@0,300;0,400;0,700;1,300&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        font-family: "Plus Jakarta Sans", sans-serif;
+      }
+      .font-reader {
+        font-family: "Merriweather", serif;
+      }
+      /* Custom scrollbar */
+      ::-webkit-scrollbar {
+        width: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 4px;
+      }
+      .dark ::-webkit-scrollbar-thumb {
+        background: #475569;
+      }
+    </style>
+  </head>
+  <body
+    class="bg-slate-50 text-slate-800 dark:bg-slate-900 dark:text-slate-100 min-h-screen flex flex-col transition-colors duration-200"
+  >
+    <!-- PETUNJUK SETUP FIREBASE FOR GITHUB PAGES:
+    =======================================================================================
+    1. Buat project baru di Firebase Console (https://console.firebase.google.com/)
+    2. Aktifkan Authentication: Email/Password & Google Sign-In.
+    3. Buat Firestore Database (Start in test mode atau atur security rules).
+    4. Salin Konfigurasi Web App dari Firebase Settings.
+    5. Ganti variabel `firebaseConfig` di bawah (baris ~280) dengan milikmu.
+    6. Simpan file ini sebagai `index.html` dan upload ke repo GitHub kamu.
+    7. Aktifkan GitHub Pages di Repository Settings -> Pages -> Source: main branch.
+    ======================================================================================= -->
+
+    <!-- Global Toast Notification -->
+    <div
+      id="toast"
+      class="fixed bottom-5 right-5 z-50 transform translate-y-20 opacity-0 transition-all duration-300 pointer-events-none"
+    >
+      <div
+        id="toast-body"
+        class="bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 px-5 py-3 rounded-xl shadow-2xl flex items-center space-x-3 border border-slate-700 dark:border-slate-300"
+      >
+        <i
+          id="toast-icon"
+          data-lucide="info"
+          class="w-5 h-5 text-brand-500"
+        ></i>
+        <span id="toast-message" class="text-sm font-medium">Notifikasi</span>
+      </div>
+    </div>
+
+    <!-- HEADER / NAVIGATION -->
+    <header
+      class="sticky top-0 z-40 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800"
+    >
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex items-center justify-between h-16">
+          <!-- Logo -->
+          <div
+            class="flex items-center space-x-3 cursor-pointer"
+            onclick="navigateTo('catalog')"
+          >
+            <div
+              class="bg-brand-600 text-white p-2 rounded-xl shadow-md shadow-brand-500/20"
+            >
+              <i data-lucide="book-open" class="w-6 h-6"></i>
+            </div>
+            <div>
+              <span
+                class="text-xl font-bold bg-gradient-to-r from-brand-600 to-emerald-500 bg-clip-text text-transparent"
+                >PustakaKata</span
+              >
+              <span
+                class="text-[10px] block font-semibold tracking-wider text-slate-400 uppercase -mt-1"
+                >Digital Library</span
+              >
+            </div>
+          </div>
+
+          <!-- Navigation Links & User Controls -->
+          <div class="flex items-center space-x-3 sm:space-x-5">
+            <!-- Role Badge / Admin Toggle Button -->
+            <button
+              id="nav-writer-btn"
+              onclick="navigateTo('writer-dashboard')"
+              class="hidden sm:flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 transition"
+            >
+              <i data-lucide="pen-tool" class="w-3.5 h-3.5"></i>
+              <span>Dashboard Penulis</span>
+            </button>
+
+            <!-- Token Badge -->
+            <div
+              id="nav-token-container"
+              class="hidden flex items-center bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 px-3 py-1.5 rounded-full cursor-pointer hover:scale-105 transition"
+              onclick="openTopUpModal()"
+            >
+              <i
+                data-lucide="coins"
+                class="w-4 h-4 text-amber-500 mr-1.5 animate-pulse"
+              ></i>
+              <span
+                id="nav-user-tokens"
+                class="text-xs font-bold text-amber-700 dark:text-amber-400"
+                >0 Token</span
+              >
+              <div class="bg-amber-500 text-white rounded-full p-0.5 ml-1.5">
+                <i data-lucide="plus" class="w-3 h-3"></i>
+              </div>
+            </div>
+
+            <!-- Auth Actions -->
+            <div id="auth-buttons" class="flex items-center space-x-2">
+              <button
+                onclick="openAuthModal('login')"
+                class="px-4 py-2 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:text-brand-600 transition"
+              >
+                Masuk
+              </button>
+              <button
+                onclick="openAuthModal('register')"
+                class="px-4 py-2 text-sm font-semibold text-white bg-brand-600 hover:bg-brand-700 rounded-xl shadow-md shadow-brand-600/20 transition"
+              >
+                Daftar
+              </button>
+            </div>
+
+            <!-- User Profile Dropdown / Logged State -->
+            <div id="user-menu" class="hidden relative">
+              <button
+                id="user-avatar-btn"
+                class="flex items-center space-x-2 focus:outline-none"
+              >
+                <img
+                  id="user-avatar"
+                  src="https://placehold.co/100x100/16a34a/ffffff?text=U"
+                  class="w-9 h-9 rounded-full ring-2 ring-brand-500/50 object-cover"
+                  alt="User"
+                />
+              </button>
+              <!-- Dropdown Content -->
+              <div
+                id="user-dropdown"
+                class="hidden absolute right-0 mt-2 w-48 bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-100 dark:border-slate-700 py-2 z-50"
+              >
+                <div
+                  class="px-4 py-2 border-b border-slate-100 dark:border-slate-700"
+                >
+                  <p id="dropdown-user-name" class="text-sm font-bold truncate">
+                    Nama User
+                  </p>
+                  <p
+                    id="dropdown-user-email"
+                    class="text-xs text-slate-500 dark:text-slate-400 truncate"
+                  >
+                    email@example.com
+                  </p>
+                </div>
+                <a
+                  href="#"
+                  onclick="
+                    navigateTo('writer-dashboard');
+                    toggleUserDropdown();
+                  "
+                  class="flex items-center space-x-2 px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700/50"
+                >
+                  <i data-lucide="pen-tool" class="w-4 h-4 text-slate-500"></i>
+                  <span>Tulis Cerita</span>
+                </a>
+                <a
+                  href="#"
+                  onclick="
+                    openTopUpModal();
+                    toggleUserDropdown();
+                  "
+                  class="flex items-center space-x-2 px-4 py-2 text-sm hover:bg-slate-50 dark:hover:bg-slate-700/50"
+                >
+                  <i data-lucide="coins" class="w-4 h-4 text-amber-500"></i>
+                  <span>Isi Ulang Token</span>
+                </a>
+                <button
+                  onclick="
+                    logout();
+                    toggleUserDropdown();
+                  "
+                  class="w-full flex items-center space-x-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 text-left"
+                >
+                  <i data-lucide="log-out" class="w-4 h-4"></i>
+                  <span>Keluar</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- MAIN CONTENT CONTAINER -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <!-- VIEW 1: BOOK CATALOG / HOME -->
+      <section id="view-catalog" class="space-y-8">
+        <!-- Hero Banner -->
+        <div
+          class="relative rounded-3xl bg-gradient-to-r from-slate-900 via-brand-950 to-slate-900 text-white p-8 sm:p-12 overflow-hidden shadow-2xl border border-brand-900/40"
+        >
+          <div
+            class="absolute -right-10 -bottom-10 w-64 h-64 bg-brand-500/10 rounded-full blur-3xl"
+          ></div>
+          <div class="relative z-10 max-w-2xl space-y-4">
+            <span
+              class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-brand-500/20 text-brand-300 border border-brand-500/30"
+            >
+              <i data-lucide="sparkles" class="w-3.5 h-3.5 mr-1"></i> Platform
+              Baca Digital
+            </span>
+            <h1
+              class="text-3xl sm:text-5xl font-extrabold tracking-tight leading-tight"
+            >
+              Jelajahi Ribuan Kisah Menarik Tanpa Batas.
+            </h1>
+            <p class="text-slate-300 text-sm sm:text-base">
+              Dukung penulis favoritmu secara langsung dengan membuka bab
+              premium menggunakan Token Koin.
+            </p>
+          </div>
+        </div>
+
+        <!-- Filter & Search Bar -->
+        <div
+          class="flex flex-col sm:flex-row gap-4 items-center justify-between"
+        >
+          <div class="relative w-full sm:w-80">
+            <i
+              data-lucide="search"
+              class="absolute left-3.5 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400"
+            ></i>
+            <input
+              type="text"
+              id="search-input"
+              onkeyup="filterBooks()"
+              placeholder="Cari judul buku atau penulis..."
+              class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+            />
+          </div>
+          <!-- Categories -->
+          <div
+            class="flex items-center space-x-2 overflow-x-auto w-full sm:w-auto pb-2 sm:pb-0"
+          >
+            <button
+              onclick="filterCategory('all')"
+              class="category-btn active px-4 py-2 rounded-xl text-xs font-semibold bg-brand-600 text-white shadow-md"
+            >
+              Semua
+            </button>
+            <button
+              onclick="filterCategory('Romantis')"
+              class="category-btn px-4 py-2 rounded-xl text-xs font-semibold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-brand-500"
+            >
+              Romantis
+            </button>
+            <button
+              onclick="filterCategory('Fantasy')"
+              class="category-btn px-4 py-2 rounded-xl text-xs font-semibold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-brand-500"
+            >
+              Fantasy
+            </button>
+            <button
+              onclick="filterCategory('Horor')"
+              class="category-btn px-4 py-2 rounded-xl text-xs font-semibold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-brand-500"
+            >
+              Horor
+            </button>
+            <button
+              onclick="filterCategory('Drama')"
+              class="category-btn px-4 py-2 rounded-xl text-xs font-semibold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-brand-500"
+            >
+              Drama
+            </button>
+          </div>
+        </div>
+
+        <!-- Books Grid Container -->
+        <div>
+          <h2 class="text-xl font-bold mb-6 flex items-center">
+            <i data-lucide="flame" class="w-5 h-5 text-amber-500 mr-2"></i>
+            Rekomendasi Cerita Populer
+          </h2>
+          <div
+            id="books-grid"
+            class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-6"
+          >
+            <!-- Dynamic Loading State / Book Cards injected via JS -->
+            <div
+              class="col-span-full py-16 text-center text-slate-400 animate-pulse"
+            >
+              <i
+                data-lucide="loader"
+                class="w-8 h-8 animate-spin mx-auto mb-2"
+              ></i>
+              <p>Memuat katalog cerita...</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW 2: BOOK DETAIL & CHAPTER LIST -->
+      <section id="view-book-detail" class="hidden space-y-8">
+        <button
+          onclick="navigateTo('catalog')"
+          class="inline-flex items-center text-sm font-semibold text-slate-500 hover:text-brand-600 transition"
+        >
+          <i data-lucide="arrow-left" class="w-4 h-4 mr-1"></i> Kembali ke
+          Katalog
+        </button>
+
+        <!-- Book Header Info -->
+        <div
+          class="bg-white dark:bg-slate-800 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-700/60 shadow-xl flex flex-col md:flex-row gap-8"
+        >
+          <img
+            id="detail-cover"
+            src=""
+            alt="Book Cover"
+            class="w-44 sm:w-56 h-64 sm:h-80 object-cover rounded-2xl shadow-lg mx-auto md:mx-0"
+          />
+          <div class="flex-1 space-y-4 text-center md:text-left">
+            <div
+              id="detail-category"
+              class="inline-block px-3 py-1 bg-brand-50 dark:bg-brand-950/50 text-brand-600 dark:text-brand-400 text-xs font-bold rounded-full"
+            >
+              Kategori
+            </div>
+            <h1
+              id="detail-title"
+              class="text-2xl sm:text-4xl font-extrabold tracking-tight"
+            >
+              Judul Buku
+            </h1>
+            <p
+              class="text-slate-500 dark:text-slate-400 text-sm flex items-center justify-center md:justify-start"
+            >
+              <i data-lucide="user" class="w-4 h-4 mr-1.5"></i> Oleh
+              <span
+                id="detail-author"
+                class="font-semibold text-slate-800 dark:text-slate-200 ml-1"
+                >Penulis</span
+              >
+            </p>
+            <p
+              id="detail-synopsis"
+              class="text-slate-600 dark:text-slate-300 text-sm leading-relaxed max-w-3xl"
+            >
+              Sinopsis lengkap cerita akan tampil di sini...
+            </p>
+          </div>
+        </div>
+
+        <!-- Chapters List -->
+        <div
+          class="bg-white dark:bg-slate-800 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-700/60 shadow-xl"
+        >
+          <h3 class="text-xl font-bold mb-4 flex items-center justify-between">
+            <span>Daftar Bab / Episode</span>
+            <span
+              id="detail-chapter-count"
+              class="text-xs font-normal text-slate-400"
+              >0 Bab</span
+            >
+          </h3>
+          <div
+            id="chapters-list"
+            class="divide-y divide-slate-100 dark:divide-slate-700/60"
+          >
+            <!-- Injected Chapters -->
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW 3: CHAPTER READER INTERFACE -->
+      <section id="view-reader" class="hidden max-w-4xl mx-auto space-y-6">
+        <!-- Reader Navigation Top Bar -->
+        <div
+          class="sticky top-20 z-30 bg-white/90 dark:bg-slate-800/90 backdrop-blur border border-slate-200 dark:border-slate-700/80 rounded-2xl p-3 shadow-md flex items-center justify-between"
+        >
+          <button
+            onclick="backToBookDetail()"
+            class="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl transition"
+          >
+            <i data-lucide="arrow-left" class="w-5 h-5"></i>
+          </button>
+
+          <span
+            id="reader-chapter-title"
+            class="text-sm font-bold truncate max-w-[200px] sm:max-w-md"
+            >Bab 1: Judul Bab</span
+          >
+
+          <!-- Reader Customization Controls -->
+          <div class="flex items-center space-x-2">
+            <button
+              onclick="adjustFontSize(-2)"
+              class="p-2 text-xs font-bold bg-slate-100 dark:bg-slate-700 rounded-lg hover:bg-slate-200"
+            >
+              A-
+            </button>
+            <button
+              onclick="adjustFontSize(2)"
+              class="p-2 text-sm font-bold bg-slate-100 dark:bg-slate-700 rounded-lg hover:bg-slate-200"
+            >
+              A+
+            </button>
+            <button
+              onclick="toggleReaderTheme()"
+              class="p-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg"
+            >
+              <i data-lucide="moon" class="w-4 h-4 hidden dark:block"></i>
+              <i data-lucide="sun" class="w-4 h-4 block dark:hidden"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Reading Canvas Box -->
+        <div
+          id="reader-container"
+          class="bg-white dark:bg-slate-800 rounded-3xl p-6 sm:p-12 border border-slate-200 dark:border-slate-700/60 shadow-xl min-h-[60vh]"
+        >
+          <h1
+            id="reader-heading"
+            class="text-2xl sm:text-3xl font-bold mb-6 text-center border-b pb-4 border-slate-100 dark:border-slate-700"
+          >
+            Judul Bab
+          </h1>
+          <div
+            id="reader-body"
+            class="font-reader text-slate-700 dark:text-slate-200 text-lg leading-relaxed whitespace-pre-line"
+          >
+            <!-- Chapter text content -->
+          </div>
+        </div>
+
+        <!-- Chapter Footer Nav Buttons -->
+        <div class="flex items-center justify-between py-4">
+          <button
+            id="prev-chapter-btn"
+            class="px-5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 font-semibold text-sm hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center"
+          >
+            <i data-lucide="chevron-left" class="w-4 h-4 mr-1"></i> Bab
+            Sebelumnya
+          </button>
+          <button
+            id="next-chapter-btn"
+            class="px-5 py-2.5 rounded-xl bg-brand-600 text-white font-semibold text-sm hover:bg-brand-700 flex items-center shadow-md"
+          >
+            Bab Selanjutnya
+            <i data-lucide="chevron-right" class="w-4 h-4 ml-1"></i>
+          </button>
+        </div>
+      </section>
+
+      <!-- VIEW 4: WRITER / ADMIN DASHBOARD -->
+      <section id="view-writer-dashboard" class="hidden space-y-8">
+        <div class="flex items-center justify-between">
+          <div>
+            <h1 class="text-2xl sm:text-3xl font-bold">Dashboard Penulis</h1>
+            <p class="text-sm text-slate-500">
+              Kelola cerita buatanmu dan tambah bab berbayar.
+            </p>
+          </div>
+          <button
+            onclick="openCreateBookModal()"
+            class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white font-semibold rounded-xl text-sm shadow-md flex items-center"
+          >
+            <i data-lucide="plus" class="w-4 h-4 mr-1.5"></i> Buat Cerita Baru
+          </button>
+        </div>
+
+        <!-- Author's Books List -->
+        <div
+          class="bg-white dark:bg-slate-800 rounded-3xl p-6 border border-slate-200 dark:border-slate-700 shadow-xl"
+        >
+          <h2 class="text-lg font-bold mb-4">Koleksi Buku Kamu</h2>
+          <div id="author-books-list" class="space-y-4">
+            <!-- Dynamic Items -->
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- MODAL: AUTH (LOGIN / REGISTER) -->
+    <div
+      id="auth-modal"
+      class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4"
+    >
+      <div
+        class="bg-white dark:bg-slate-800 w-full max-w-md rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-700 overflow-hidden relative p-6 sm:p-8"
+      >
+        <button
+          onclick="closeAuthModal()"
+          class="absolute top-4 right-4 text-slate-400 hover:text-slate-600"
+        >
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+
+        <h3 id="auth-modal-title" class="text-2xl font-bold mb-2">
+          Masuk Akun
+        </h3>
+        <p class="text-xs text-slate-500 mb-6">
+          Nikmati pengalaman membaca cerita tanpa batas.
+        </p>
+
+        <!-- Google Login Button -->
+        <button
+          onclick="loginWithGoogle()"
+          class="w-full flex items-center justify-center space-x-2 border border-slate-300 dark:border-slate-700 py-2.5 rounded-xl text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-700/50 transition mb-4"
+        >
+          <svg class="w-4 h-4" viewBox="0 0 24 24">
+            <path
+              fill="#4285F4"
+              d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+            />
+            <path
+              fill="#34A853"
+              d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+            />
+            <path
+              fill="#FBBC05"
+              d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+            />
+            <path
+              fill="#EA4335"
+              d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+            />
+          </svg>
+          <span>Lanjutkan dengan Google</span>
+        </button>
+
+        <div class="relative my-4 flex items-center justify-center">
+          <hr class="w-full border-slate-200 dark:border-slate-700" />
+          <span
+            class="absolute bg-white dark:bg-slate-800 px-3 text-[10px] uppercase font-bold text-slate-400"
+            >atau</span
+          >
+        </div>
+
+        <!-- Email & Pass Form -->
+        <form
+          id="auth-form"
+          onsubmit="handleAuthSubmit(event)"
+          class="space-y-4"
+        >
+          <div id="name-field" class="hidden">
+            <label class="block text-xs font-semibold mb-1">Nama Lengkap</label>
+            <input
+              type="text"
+              id="auth-name"
+              placeholder="John Doe"
+              class="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+            />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold mb-1">Email</label>
+            <input
+              type="email"
+              id="auth-email"
+              required
+              placeholder="nama@email.com"
+              class="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+            />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold mb-1">Password</label>
+            <input
+              type="password"
+              id="auth-password"
+              required
+              placeholder="••••••••"
+              class="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+            />
+          </div>
+          <button
+            type="submit"
+            id="auth-submit-btn"
+            class="w-full py-3 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-xl text-sm shadow-md transition"
+          >
+            Masuk
+          </button>
+        </form>
+
+        <p class="mt-4 text-center text-xs text-slate-500">
+          <span id="auth-toggle-text">Belum punya akun?</span>
+          <a
+            href="#"
+            id="auth-toggle-btn"
+            onclick="toggleAuthMode()"
+            class="text-brand-600 font-bold ml-1 hover:underline"
+            >Daftar Sekarang</a
+          >
+        </p>
+      </div>
+    </div>
+
+    <!-- MODAL: TOP UP TOKEN -->
+    <div
+      id="topup-modal"
+      class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4"
+    >
+      <div
+        class="bg-white dark:bg-slate-800 w-full max-w-md rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-700 p-6 sm:p-8 relative"
+      >
+        <button
+          onclick="closeTopUpModal()"
+          class="absolute top-4 right-4 text-slate-400 hover:text-slate-600"
+        >
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+
+        <div class="text-center space-y-2 mb-6">
+          <div
+            class="w-12 h-12 bg-amber-100 dark:bg-amber-950/60 text-amber-500 rounded-full flex items-center justify-center mx-auto"
+          >
+            <i data-lucide="coins" class="w-6 h-6"></i>
+          </div>
+          <h3 class="text-xl font-bold">Isi Ulang Token Koin</h3>
+          <p class="text-xs text-slate-500">
+            Pilih paket token untuk membuka bab cerita berbayar.
+          </p>
+        </div>
+
+        <!-- Pricing Options -->
+        <div class="grid grid-cols-2 gap-3 mb-6">
+          <div
+            onclick="selectTokenPackage(10, 5000)"
+            class="pkg-card border-2 border-brand-500 bg-brand-50/50 dark:bg-brand-950/30 rounded-2xl p-4 text-center cursor-pointer hover:scale-105 transition"
+          >
+            <p class="text-lg font-extrabold text-amber-500">10 Token</p>
+            <p class="text-xs font-semibold text-slate-600 dark:text-slate-300">
+              Rp 5.000
+            </p>
+          </div>
+          <div
+            onclick="selectTokenPackage(25, 10000)"
+            class="pkg-card border-2 border-slate-200 dark:border-slate-700 rounded-2xl p-4 text-center cursor-pointer hover:scale-105 transition"
+          >
+            <p class="text-lg font-extrabold text-amber-500">25 Token</p>
+            <p class="text-xs font-semibold text-slate-600 dark:text-slate-300">
+              Rp 10.000
+            </p>
+          </div>
+          <div
+            onclick="selectTokenPackage(60, 20000)"
+            class="pkg-card border-2 border-slate-200 dark:border-slate-700 rounded-2xl p-4 text-center cursor-pointer hover:scale-105 transition"
+          >
+            <p class="text-lg font-extrabold text-amber-500">60 Token</p>
+            <p class="text-xs font-semibold text-slate-600 dark:text-slate-300">
+              Rp 20.000
+            </p>
+          </div>
+          <div
+            onclick="selectTokenPackage(150, 50000)"
+            class="pkg-card border-2 border-slate-200 dark:border-slate-700 rounded-2xl p-4 text-center cursor-pointer hover:scale-105 transition"
+          >
+            <p class="text-lg font-extrabold text-amber-500">150 Token</p>
+            <p class="text-xs font-semibold text-slate-600 dark:text-slate-300">
+              Rp 50.000
+            </p>
+          </div>
+        </div>
+
+        <!-- Mock QRIS Area -->
+        <div
+          class="bg-slate-50 dark:bg-slate-900 rounded-2xl p-4 text-center space-y-3 mb-6 border border-slate-200 dark:border-slate-800"
+        >
+          <p class="text-xs font-semibold text-slate-500">
+            Simulasi Pembayaran QRIS Instan
+          </p>
+          <img
+            src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=SIMULASI-PAYMENT-PUSTAKAKATA"
+            class="w-28 h-28 mx-auto rounded-lg shadow-md"
+            alt="QRIS"
+          />
+          <p class="text-[11px] text-slate-400">
+            Klik tombol di bawah untuk menyimulasikan pembayaran berhasil.
+          </p>
+        </div>
+
+        <button
+          onclick="processSimulatedTopUp()"
+          class="w-full py-3 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-xl text-sm shadow-md transition flex items-center justify-center"
+        >
+          <i data-lucide="check-circle-2" class="w-4 h-4 mr-2"></i> Konfirmasi
+          Pembayaran
+        </button>
+      </div>
+    </div>
+
+    <!-- MODAL: ADD / EDIT BOOK -->
+    <div
+      id="book-modal"
+      class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4"
+    >
+      <div
+        class="bg-white dark:bg-slate-800 w-full max-w-lg rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-700 p-6 sm:p-8 relative"
+      >
+        <button
+          onclick="closeBookModal()"
+          class="absolute top-4 right-4 text-slate-400 hover:text-slate-600"
+        >
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+        <h3 class="text-2xl font-bold mb-4">Tambah Buku Baru</h3>
+        <form onsubmit="handleSaveBook(event)" class="space-y-4">
+          <div>
+            <label class="block text-xs font-semibold mb-1">Judul Buku</label>
+            <input
+              type="text"
+              id="book-form-title"
+              required
+              class="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-sm"
+            />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold mb-1">Kategori</label>
+            <select
+              id="book-form-category"
+              class="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-sm"
+            >
+              <option value="Romantis">Romantis</option>
+              <option value="Fantasy">Fantasy</option>
+              <option value="Horor">Horor</option>
+              <option value="Drama">Drama</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold mb-1"
+              >URL Cover Gambar</label
+            >
+            <input
+              type="url"
+              id="book-form-cover"
+              required
+              placeholder="https://..."
+              class="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-sm"
+            />
+          </div>
+          <div>
+            <label class="block text-xs font-semibold mb-1">Sinopsis</label>
+            <textarea
+              id="book-form-synopsis"
+              rows="4"
+              required
+              class="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-sm"
+            ></textarea>
+          </div>
+          <button
+            type="submit"
+            class="w-full py-3 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-xl text-sm shadow-md"
+          >
+            Simpan Buku
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- MODAL: ADD / EDIT CHAPTER -->
+    <div
+      id="chapter-modal"
+      class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4"
+    >
+      <div
+        class="bg-white dark:bg-slate-800 w-full max-w-2xl rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-700 p-6 sm:p-8 relative max-h-[90vh] overflow-y-auto"
+      >
+        <button
+          onclick="closeChapterModal()"
+          class="absolute top-4 right-4 text-slate-400 hover:text-slate-600"
+        >
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+        <h3 class="text-2xl font-bold mb-4">Tambah Bab Baru</h3>
+        <form onsubmit="handleSaveChapter(event)" class="space-y-4">
+          <input type="hidden" id="chapter-form-book-id" />
+          <div>
+            <label class="block text-xs font-semibold mb-1">Judul Bab</label>
+            <input
+              type="text"
+              id="chapter-form-title"
+              required
+              placeholder="Bab 1: Awal Mulai"
+              class="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-sm"
+            />
+          </div>
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-xs font-semibold mb-1">Akses Bab</label>
+              <select
+                id="chapter-form-is-paid"
+                onchange="toggleTokenPriceInput()"
+                class="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-sm"
+              >
+                <option value="false">Gratis</option>
+                <option value="true">Berbayar (Pakai Token)</option>
+              </select>
+            </div>
+            <div id="token-price-field" class="hidden">
+              <label class="block text-xs font-semibold mb-1"
+                >Harga Token</label
+              >
+              <input
+                type="number"
+                id="chapter-form-token-cost"
+                min="1"
+                value="5"
+                class="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-sm"
+              />
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold mb-1"
+              >Isi Cerita Bab</label
+            >
+            <textarea
+              id="chapter-form-content"
+              rows="10"
+              required
+              placeholder="Tuliskan cerita kamu di sini..."
+              class="w-full px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-sm font-reader leading-relaxed"
+            ></textarea>
+          </div>
+          <button
+            type="submit"
+            class="w-full py-3 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-xl text-sm shadow-md"
+          >
+            Publikasikan Bab
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- FIREBASE & CORE JS LOGIC -->
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+      import {
+        getAuth,
+        signInWithCustomToken,
+        //signInAnonymously,
+        onAuthStateChanged,
+        createUserWithEmailAndPassword,
+        signInWithEmailAndPassword,
+        GoogleAuthProvider,
+        signInWithPopup,
+        signOut,
+      } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+      import {
+        getFirestore,
+        doc,
+        getDoc,
+        setDoc,
+        updateDoc,
+        collection,
+        getDocs,
+        onSnapshot,
+        addDoc,
+        deleteDoc,
+        arrayUnion,
+      } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+      // Firebase Configuration (Otomatis menggunakan config internal atau custom)
+    const firebaseConfig = {
+  apiKey: "AIzaSyBlVMohM-pW250zdQAffxa6SSnHrrwPOu0",
+  authDomain: "katarasa-62962.firebaseapp.com",
+  projectId: "katarasa-62962",
+  storageBucket: "katarasa-62962.firebasestorage.app",
+  messagingSenderId: "842421317064",
+  appId: "1:842421317064:web:87fa4eacb9787c6368a4fd",
+  measurementId: "G-3CRR33MR3T"
+};
+      const app = initializeApp(firebaseConfig);
+      const auth = getAuth(app);
+      const db = getFirestore(app);
+
+      const appId =
+        typeof __app_id !== "undefined" ? __app_id : "pustakakata-default";
+
+      // App Global State
+      let currentUser = null;
+      let userData = { tokens: 0, unlockedChapters: [] };
+      let currentBooks = [];
+      let activeBook = null;
+      let activeChapter = null;
+      let selectedTopUpPackage = { tokens: 10, price: 5000 };
+      let isAuthLoginMode = true;
+
+      // Paths Helpers (Mandatory Rule Compliance)
+      const getPublicCollectionPath = (col) =>
+        `artifacts/${appId}/public/data/${col}`;
+      const getUserDocPath = (uid) =>
+        `artifacts/${appId}/users/${uid}/profile/data`;
+
+      // Wait Window Load
+      window.addEventListener("load", async () => {
+        lucide.createIcons();
+        initAuthListener();
+        listenToBooks();
+      });
+
+      // AUTHENTICATION SYSTEM
+      async function initAuthListener() {
+        try {
+          if (
+            typeof __initial_auth_token !== "undefined" &&
+            __initial_auth_token
+          ) {
+            await signInWithCustomToken(auth, __initial_auth_token);
+          } else {
+            // Default fallback login anonim jika belum login
+           // await signInAnonymously(auth);
+          }
+        } catch (err) {
+          console.error("Auth init error:", err);
+        }
+
+        onAuthStateChanged(auth, async (user) => {
+          currentUser = user;
+          if (user) {
+            await syncUserProfile(user);
+            document.getElementById("auth-buttons").classList.add("hidden");
+            document.getElementById("user-menu").classList.remove("hidden");
+            document
+              .getElementById("nav-token-container")
+              .classList.remove("hidden");
+
+            const avatarUrl =
+              user.photoURL ||
+              `https://placehold.co/100x100/16a34a/ffffff?text=${(user.displayName || user.email || "U")[0].toUpperCase()}`;
+            document.getElementById("user-avatar").src = avatarUrl;
+            document.getElementById("dropdown-user-name").innerText =
+              user.displayName || "Pembaca";
+            document.getElementById("dropdown-user-email").innerText =
+              user.email || "Akun Anonim";
+          } else {
+            document.getElementById("auth-buttons").classList.remove("hidden");
+            document.getElementById("user-menu").classList.add("hidden");
+            document
+              .getElementById("nav-token-container")
+              .classList.add("hidden");
+          }
+        });
+      }
+
+      async function syncUserProfile(user) {
+        const userRef = doc(db, getUserDocPath(user.uid));
+        onSnapshot(
+          userRef,
+          (snapshot) => {
+            if (snapshot.exists()) {
+              userData = snapshot.data();
+            } else {
+              userData = { tokens: 50, unlockedChapters: [] }; // Initial Bonus 50 tokens
+              setDoc(userRef, userData);
+            }
+            document.getElementById("nav-user-tokens").innerText =
+              `${userData.tokens || 0} Token`;
+          },
+          (error) => console.error("Error listening to user profile:", error),
+        );
+      }
+
+      window.handleAuthSubmit = async (e) => {
+        e.preventDefault();
+        const email = document.getElementById("auth-email").value;
+        const password = document.getElementById("auth-password").value;
+        const name = document.getElementById("auth-name").value;
+
+        try {
+          if (isAuthLoginMode) {
+            await signInWithEmailAndPassword(auth, email, password);
+            showToast("Berhasil masuk!");
+          } else {
+            const res = await createUserWithEmailAndPassword(
+              auth,
+              email,
+              password,
+            );
+            await setDoc(doc(db, getUserDocPath(res.user.uid)), {
+              name: name,
+              tokens: 50, // Welcome bonus
+              unlockedChapters: [],
+            });
+            showToast("Pendaftaran berhasil! Bonus 50 Token untukmu.");
+          }
+          closeAuthModal();
+        } catch (error) {
+          showToast(error.message, true);
+        }
+      };
+
+      window.loginWithGoogle = async () => {
+        try {
+          const provider = new GoogleAuthProvider();
+          await signInWithPopup(auth, provider);
+          showToast("Berhasil masuk dengan Google!");
+          closeAuthModal();
+        } catch (error) {
+          showToast("Gagal login dengan Google", true);
+        }
+      };
+
+      window.logout = async () => {
+        await signOut(auth);
+        //await signInAnonymously(auth);
+        showToast("Berhasil keluar.");
+        navigateTo("catalog");
+      };
+
+      // FIRESTORE: BOOKS & CHAPTERS MANAGEMENT
+      function listenToBooks() {
+        const booksCol = collection(db, getPublicCollectionPath("books"));
+        onSnapshot(
+          booksCol,
+          (snapshot) => {
+            currentBooks = snapshot.docs.map((doc) => ({
+              id: doc.id,
+              ...doc.data(),
+            }));
+            renderCatalog(currentBooks);
+            renderAuthorBooks();
+          },
+          (err) => console.error("Error fetching books:", err),
+        );
+      }
+
+      // RENDER CATALOG
+      function renderCatalog(books) {
+        const container = document.getElementById("books-grid");
+        if (books.length === 0) {
+          container.innerHTML = `<div class="col-span-full py-12 text-center text-slate-400">Belum ada cerita yang tersedia.</div>`;
+          return;
+        }
+
+        container.innerHTML = books
+          .map(
+            (book) => `
+                <div onclick="openBookDetail('${book.id}')" class="group bg-white dark:bg-slate-800 rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700/60 shadow-sm hover:shadow-xl hover:-translate-y-1 transition duration-300 cursor-pointer flex flex-col">
+                    <div class="relative aspect-[3/4] overflow-hidden bg-slate-100 dark:bg-slate-900">
+                        <img src="${book.cover}" alt="${book.title}" class="w-full h-full object-cover group-hover:scale-105 transition duration-500" onerror="this.src='https://placehold.co/300x400/1e293b/ffffff?text=No+Cover'">
+                        <span class="absolute top-2 left-2 px-2.5 py-1 bg-slate-900/80 backdrop-blur text-white text-[10px] font-bold rounded-lg">${book.category || "Umum"}</span>
+                    </div>
+                    <div class="p-3.5 flex-1 flex flex-col justify-between space-y-2">
+                        <div>
+                            <h3 class="font-bold text-sm line-clamp-1 group-hover:text-brand-600 transition">${book.title}</h3>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">${book.authorName || "Penulis"}</p>
+                        </div>
+                        <div class="flex items-center text-[11px] text-slate-400 border-t border-slate-100 dark:border-slate-700/50 pt-2">
+                            <i data-lucide="book-open" class="w-3.5 h-3.5 mr-1"></i>
+                            <span>${(book.chapters || []).length} Bab</span>
+                        </div>
+                    </div>
+                </div>
+            `,
+          )
+          .join("");
+        lucide.createIcons();
+      }
+
+      // BOOK DETAIL & CHAPTER UNLOCK LOGIC
+      window.openBookDetail = (bookId) => {
+        activeBook = currentBooks.find((b) => b.id === bookId);
+        if (!activeBook) return;
+
+        document.getElementById("detail-cover").src = activeBook.cover;
+        document.getElementById("detail-title").innerText = activeBook.title;
+        document.getElementById("detail-author").innerText =
+          activeBook.authorName || "Penulis";
+        document.getElementById("detail-category").innerText =
+          activeBook.category || "Umum";
+        document.getElementById("detail-synopsis").innerText =
+          activeBook.synopsis;
+
+        const chapters = activeBook.chapters || [];
+        document.getElementById("detail-chapter-count").innerText =
+          `${chapters.length} Bab`;
+
+        const listContainer = document.getElementById("chapters-list");
+        if (chapters.length === 0) {
+          listContainer.innerHTML = `<p class="py-6 text-center text-xs text-slate-400">Belum ada bab yang dipublikasikan.</p>`;
+        } else {
+          listContainer.innerHTML = chapters
+            .map((chap, idx) => {
+              const isUnlocked =
+                !chap.isPaid ||
+                (userData.unlockedChapters &&
+                  userData.unlockedChapters.includes(chap.id));
+              return `
+                        <div class="py-4 flex items-center justify-between group">
+                            <div class="flex items-center space-x-3">
+                                <span class="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-xs font-bold text-slate-500">${idx + 1}</span>
+                                <div>
+                                    <h4 class="font-semibold text-sm group-hover:text-brand-600 transition">${chap.title}</h4>
+                                    <span class="text-[11px] text-slate-400">${chap.isPaid ? `${chap.tokenCost} Token` : "Gratis"}</span>
+                                </div>
+                            </div>
+                            <div>
+                                ${
+                                  isUnlocked
+                                    ? `
+                                    <button onclick="readChapter('${chap.id}')" class="px-4 py-1.5 bg-brand-50 text-brand-600 dark:bg-brand-950/40 dark:text-brand-400 hover:bg-brand-600 hover:text-white rounded-xl text-xs font-bold transition flex items-center">
+                                        <i data-lucide="book-open" class="w-3.5 h-3.5 mr-1"></i> Baca
+                                    </button>
+                                `
+                                    : `
+                                    <button onclick="unlockChapter('${chap.id}', ${chap.tokenCost})" class="px-4 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition flex items-center shadow-md">
+                                        <i data-lucide="lock" class="w-3.5 h-3.5 mr-1"></i> Buka (${chap.tokenCost} Token)
+                                    </button>
+                                `
+                                }
+                            </div>
+                        </div>
+                    `;
+            })
+            .join("");
+        }
+
+        navigateTo("book-detail");
+        lucide.createIcons();
+      };
+
+      window.unlockChapter = async (chapterId, cost) => {
+        if (!currentUser) {
+          openAuthModal("login");
+          return;
+        }
+
+        if ((userData.tokens || 0) < cost) {
+          showToast("Saldo token tidak cukup. Silakan Top Up!", true);
+          openTopUpModal();
+          return;
+        }
+
+        try {
+          const userRef = doc(db, getUserDocPath(currentUser.uid));
+          await updateDoc(userRef, {
+            tokens: (userData.tokens || 0) - cost,
+            unlockedChapters: arrayUnion(chapterId),
+          });
+          showToast("Bab berhasil dibuka!");
+          openBookDetail(activeBook.id);
+        } catch (err) {
+          showToast("Gagal membuka bab", true);
+        }
+      };
+
+      // READER CONTROLLER
+      window.readChapter = (chapterId) => {
+        const chapters = activeBook.chapters || [];
+        activeChapter = chapters.find((c) => c.id === chapterId);
+        if (!activeChapter) return;
+
+        document.getElementById("reader-chapter-title").innerText =
+          activeChapter.title;
+        document.getElementById("reader-heading").innerText =
+          activeChapter.title;
+        document.getElementById("reader-body").innerText =
+          activeChapter.content;
+
+        const idx = chapters.findIndex((c) => c.id === chapterId);
+        const prevBtn = document.getElementById("prev-chapter-btn");
+        const nextBtn = document.getElementById("next-chapter-btn");
+
+        if (idx > 0) {
+          prevBtn.onclick = () => readChapter(chapters[idx - 1].id);
+          prevBtn.classList.remove("hidden");
+        } else {
+          prevBtn.classList.add("hidden");
+        }
+
+        if (idx < chapters.length - 1) {
+          nextBtn.onclick = () => readChapter(chapters[idx + 1].id);
+          nextBtn.classList.remove("hidden");
+        } else {
+          nextBtn.classList.add("hidden");
+        }
+
+        navigateTo("reader");
+        window.scrollTo(0, 0);
+      };
+
+      window.backToBookDetail = () => {
+        if (activeBook) openBookDetail(activeBook.id);
+        else navigateTo("catalog");
+      };
+
+      // TOP UP SIMULATION
+      window.selectTokenPackage = (tokens, price) => {
+        selectedTopUpPackage = { tokens, price };
+        document.querySelectorAll(".pkg-card").forEach((card) => {
+          card.classList.remove(
+            "border-brand-500",
+            "bg-brand-50/50",
+            "dark:bg-brand-950/30",
+          );
+          card.classList.add("border-slate-200", "dark:border-slate-700");
+        });
+        event.currentTarget.classList.add(
+          "border-brand-500",
+          "bg-brand-50/50",
+          "dark:bg-brand-950/30",
+        );
+      };
+
+      window.processSimulatedTopUp = async () => {
+        if (!currentUser) {
+          openAuthModal("login");
+          return;
+        }
+        try {
+          const userRef = doc(db, getUserDocPath(currentUser.uid));
+          await updateDoc(userRef, {
+            tokens: (userData.tokens || 0) + selectedTopUpPackage.tokens,
+          });
+          showToast(
+            `Top up berhasil! +${selectedTopUpPackage.tokens} Token ditambahkan.`,
+          );
+          closeTopUpModal();
+        } catch (err) {
+          showToast("Gagal melakukan top up", true);
+        }
+      };
+
+      // WRITER / ADMIN DASHBOARD LOGIC
+      function renderAuthorBooks() {
+        const container = document.getElementById("author-books-list");
+        const myBooks = currentBooks.filter(
+          (b) => b.authorId === (currentUser ? currentUser.uid : "anon"),
+        );
+
+        if (myBooks.length === 0) {
+          container.innerHTML = `<p class="py-6 text-center text-slate-400 text-xs">Kamu belum mempublikasikan cerita apapun.</p>`;
+          return;
+        }
+
+        container.innerHTML = myBooks
+          .map(
+            (book) => `
+                <div class="p-4 border border-slate-200 dark:border-slate-700 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div class="flex items-center space-x-4">
+                        <img src="${book.cover}" class="w-12 h-16 object-cover rounded-lg">
+                        <div>
+                            <h4 class="font-bold text-sm">${book.title}</h4>
+                            <span class="text-xs text-slate-400">${(book.chapters || []).length} Bab</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-2 w-full sm:w-auto">
+                        <button onclick="openAddChapterModal('${book.id}')" class="px-3 py-1.5 bg-brand-600 text-white rounded-xl text-xs font-semibold flex items-center">
+                            <i data-lucide="plus" class="w-3.5 h-3.5 mr-1"></i> Tambah Bab
+                        </button>
+                        <button onclick="deleteBook('${book.id}')" class="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-xl">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+            `,
+          )
+          .join("");
+        lucide.createIcons();
+      }
+
+      window.handleSaveBook = async (e) => {
+        e.preventDefault();
+        if (!currentUser) return;
+
+        const title = document.getElementById("book-form-title").value;
+        const category = document.getElementById("book-form-category").value;
+        const cover = document.getElementById("book-form-cover").value;
+        const synopsis = document.getElementById("book-form-synopsis").value;
+
+        try {
+          await addDoc(collection(db, getPublicCollectionPath("books")), {
+            title,
+            category,
+            cover,
+            synopsis,
+            authorId: currentUser.uid,
+            authorName:
+              currentUser.displayName || currentUser.email || "Penulis",
+            chapters: [],
+            createdAt: new Date().toISOString(),
+          });
+          showToast("Buku baru berhasil diterbitkan!");
+          closeBookModal();
+        } catch (err) {
+          showToast("Gagal menyimpan buku", true);
+        }
+      };
+
+      window.handleSaveChapter = async (e) => {
+        e.preventDefault();
+        const bookId = document.getElementById("chapter-form-book-id").value;
+        const title = document.getElementById("chapter-form-title").value;
+        const isPaid =
+          document.getElementById("chapter-form-is-paid").value === "true";
+        const tokenCost =
+          parseInt(document.getElementById("chapter-form-token-cost").value) ||
+          0;
+        const content = document.getElementById("chapter-form-content").value;
+
+        const targetBook = currentBooks.find((b) => b.id === bookId);
+        if (!targetBook) return;
+
+        const newChapter = {
+          id: "chap_" + Date.now(),
+          title,
+          isPaid,
+          tokenCost: isPaid ? tokenCost : 0,
+          content,
+        };
+
+        try {
+          const bookRef = doc(db, getPublicCollectionPath("books"), bookId);
+          await updateDoc(bookRef, {
+            chapters: [...(targetBook.chapters || []), newChapter],
+          });
+          showToast("Bab baru berhasil dipublikasikan!");
+          closeChapterModal();
+        } catch (err) {
+          showToast("Gagal menyimpan bab", true);
+        }
+      };
+
+      window.deleteBook = async (bookId) => {
+        try {
+          await deleteDoc(doc(db, getPublicCollectionPath("books"), bookId));
+          showToast("Buku berhasil dihapus.");
+        } catch (err) {
+          showToast("Gagal menghapus buku", true);
+        }
+      };
+
+      // NAVIGATION LOGIC
+      window.navigateTo = (viewName) => {
+        const views = ["catalog", "book-detail", "reader", "writer-dashboard"];
+        views.forEach((v) =>
+          document.getElementById(`view-${v}`).classList.add("hidden"),
+        );
+        document.getElementById(`view-${viewName}`).classList.remove("hidden");
+        window.scrollTo(0, 0);
+      };
+
+      // UI MODALS & CONTROLLER HELPERS
+      window.openAuthModal = (mode = "login") => {
+        isAuthLoginMode = mode === "login";
+        document.getElementById("auth-modal-title").innerText = isAuthLoginMode
+          ? "Masuk Akun"
+          : "Daftar Akun Baru";
+        document.getElementById("auth-submit-btn").innerText = isAuthLoginMode
+          ? "Masuk"
+          : "Daftar";
+        document
+          .getElementById("name-field")
+          .classList.toggle("hidden", isAuthLoginMode);
+        document.getElementById("auth-modal").classList.remove("hidden");
+      };
+
+      window.closeAuthModal = () =>
+        document.getElementById("auth-modal").classList.add("hidden");
+      window.toggleAuthMode = () =>
+        openAuthModal(isAuthLoginMode ? "register" : "login");
+      window.toggleUserDropdown = () =>
+        document.getElementById("user-dropdown").classList.toggle("hidden");
+
+      window.openTopUpModal = () =>
+        document.getElementById("topup-modal").classList.remove("hidden");
+      window.closeTopUpModal = () =>
+        document.getElementById("topup-modal").classList.add("hidden");
+
+      window.openCreateBookModal = () =>
+        document.getElementById("book-modal").classList.remove("hidden");
+      window.closeBookModal = () =>
+        document.getElementById("book-modal").classList.add("hidden");
+
+      window.openAddChapterModal = (bookId) => {
+        document.getElementById("chapter-form-book-id").value = bookId;
+        document.getElementById("chapter-modal").classList.remove("hidden");
+      };
+      window.closeChapterModal = () =>
+        document.getElementById("chapter-modal").classList.add("hidden");
+
+      window.toggleTokenPriceInput = () => {
+        const isPaid =
+          document.getElementById("chapter-form-is-paid").value === "true";
+        document
+          .getElementById("token-price-field")
+          .classList.toggle("hidden", !isPaid);
+      };
+
+      // SEARCH & FILTER
+      window.filterBooks = () => {
+        const query = document
+          .getElementById("search-input")
+          .value.toLowerCase();
+        const filtered = currentBooks.filter(
+          (b) =>
+            b.title.toLowerCase().includes(query) ||
+            (b.authorName && b.authorName.toLowerCase().includes(query)),
+        );
+        renderCatalog(filtered);
+      };
+
+      window.filterCategory = (cat) => {
+        document.querySelectorAll(".category-btn").forEach((b) => {
+          b.classList.remove("bg-brand-600", "text-white");
+          b.classList.add("bg-white", "dark:bg-slate-800");
+        });
+        event.currentTarget.classList.add("bg-brand-600", "text-white");
+
+        if (cat === "all") renderCatalog(currentBooks);
+        else renderCatalog(currentBooks.filter((b) => b.category === cat));
+      };
+
+      // READER FONTS & THEME CONTROLLER
+      let currentFontSize = 18;
+      window.adjustFontSize = (delta) => {
+        currentFontSize = Math.max(14, Math.min(26, currentFontSize + delta));
+        document.getElementById("reader-body").style.fontSize =
+          `${currentFontSize}px`;
+      };
+
+      window.toggleReaderTheme = () => {
+        document.documentElement.classList.toggle("dark");
+      };
+
+      // TOAST NOTIFICATION HELPERS
+      function showToast(msg, isError = false) {
+        const toast = document.getElementById("toast");
+        const toastMsg = document.getElementById("toast-message");
+        const toastIcon = document.getElementById("toast-icon");
+
+        toastMsg.innerText = msg;
+        toastIcon.setAttribute(
+          "data-lucide",
+          isError ? "alert-circle" : "check-circle-2",
+        );
+        toastIcon.setAttribute("class", `w-5 h-5 ${isError ? "text-red-500" : "text-brand-500"}`);
+
+        toast.classList.remove("translate-y-20", "opacity-0");
+        setTimeout(() => {
+          toast.classList.add("translate-y-20", "opacity-0");
+        }, 3000);
+      }
+    </script>
+  </body>
+</html>
